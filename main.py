@@ -3,7 +3,8 @@ from flask_cors import CORS
 from flask_pymongo import PyMongo
 from ecdsa import SigningKey, VerifyingKey, NIST384p, BadSignatureError
 from flask_session import Session
-from bson.json_util import dumps
+from passlib.hash import sha256_crypt
+from uuid import uuid4
 # from wtforms import FileField, TextAreaField
 # from wtforms.validators import InputRequired
 
@@ -16,7 +17,6 @@ app.secret_key = 'Blue@System26'
 sess = Session()
 sess.init_app(app)
 CORS(app)
-curve = NIST384p
 
 
 @app.route("/signup", methods=['POST'])
@@ -40,8 +40,9 @@ def sign_up():
     _vk = _vk.to_string().hex()
     print(_sk)
     print(_vk)
+
     id = mongo.db.user_info.insert_one({'name': _name, 'last_name': _lastname, 'mobile': _mobile,
-                                       'email': _email, 'password': _password, 'private_key': _sk, 'verify_key': _vk})
+                                       'email': _email, 'password': sha256_crypt.hash(_password), 'private_key': _sk, 'verify_key': _vk})
     return 'Success'
     # return {"success": True}
 
@@ -54,8 +55,8 @@ def sign_in():
     password = request.form['password']
 
     user = mongo.db.user_info.find_one({'email': email})
-
-    if user is None or user['password'] != password:
+    r_pass = sha256_crypt.verify(password, user['password'])
+    if user is None or not (r_pass):
         return 'Failed'
     else:
         return 'Success'
@@ -78,10 +79,11 @@ def file_upload():
     sign = SigningKey.from_string(bytes.fromhex(
         private_key), curve=NIST384p)
     m_d = sign.sign(file)
-    is_file = mongo.db.file_name.find_one({'file_name': file_name})
+    is_file = mongo.db.file_name.find_one({'file_sign': m_d})
+    u_id = uuid4().hex
     if is_file is None:
         id = mongo.db.file_name.insert_one(
-            {'email': email, 'file_name': file_name, 'file_sign': m_d.hex()})
+            {'email': email, 'file_id': u_id, 'file_name': file_name, 'file_sign': m_d.hex()})
         return 'Success'
     else:
         return 'Failed'
@@ -90,9 +92,9 @@ def file_upload():
 @ app.route("/fileVerify", methods=['POST'])
 # @cross_origin()
 def file_verify():
-    file_name = request.form.get('fileName').split('.')[0]
+    file_id = request.form.get('fileName')
     doc = request.files.get('file').read()
-    is_file = mongo.db.file_name.find_one({'file_name': file_name})
+    is_file = mongo.db.file_name.find_one({'file_id': file_id})
     if is_file is None:
         return 'Failed'
     else:
@@ -103,18 +105,18 @@ def file_verify():
             bytes.fromhex(user['verify_key']), curve=NIST384p)
         try:
             is_sign = vk.verify(bytes.fromhex(m_d), doc)
-            print(is_sign)
+            return 'Verify'
         except BadSignatureError:
             is_sign = False
             print(is_sign)
-        return 'Success'
+            return 'Bad-Sign'
 
 
 @ app.route("/fileDisplay", methods=['POST'])
 def file_display():
     email = request.form.get('email')
     file_detail = mongo.db.file_name.find(
-        {'email': email}, {'_id': False, 'file_sign': False})
+        {'email': email}, {'_id': False, 'email': False})
     file_detail = jsonify(list(file_detail))
     return file_detail
 
