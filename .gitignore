@@ -4,3 +4,5 @@ requriments.txt
 venv
 instance
 flask_session
+.env
+db.py

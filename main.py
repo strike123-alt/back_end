@@ -5,15 +5,16 @@ from ecdsa import SigningKey, VerifyingKey, NIST384p, BadSignatureError
 from flask_session import Session
 from passlib.hash import sha256_crypt
 from uuid import uuid4
+from dotenv import dotenv_values
 # from wtforms import FileField, TextAreaField
 # from wtforms.validators import InputRequired
 
 
 app = Flask(__name__)
 
-app.config["MONGO_URI"] = "mongodb://localhost:27017/user_detail"
+app.config["MONGO_URI"] = dotenv_values(".env")['MONGO_URL']
 mongo = PyMongo(app)
-app.secret_key = 'Blue@System26'
+app.secret_key = dotenv_values(".env")['SECERT_KEY']
 sess = Session()
 sess.init_app(app)
 CORS(app)
