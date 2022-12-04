@@ -9,7 +9,7 @@ from dotenv import dotenv_values
 # from wtforms import FileField, TextAreaField
 # from wtforms.validators import InputRequired
 
-
+import os
 app = Flask(__name__)
 
 app.config["MONGO_URI"] = dotenv_values(".env")['MONGO_URL']
@@ -124,4 +124,4 @@ def file_display():
 
 if __name__ == "__main__":
 
-    app.run()
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
